@@ -1,10 +1,9 @@
-import { reactive, toRefs } from "vue";
-import { ipcRenderer, remote } from "electron";
+import { reactive, toRefs } from 'vue';
 
 const searchManager = () => {
   const state = reactive({
-    searchValue: "",
-    placeholder: "",
+    searchValue: '',
+    placeholder: '',
   });
 
   // search Input operation
@@ -21,10 +20,17 @@ const searchManager = () => {
     state.placeholder = placeholder;
   };
   window.removeSubInput = () => {
-    state.placeholder = "";
+    state.placeholder = '';
   };
   window.setSubInputValue = ({ value }: { value: string }) => {
     state.searchValue = value;
+  };
+
+  window.getMainInputInfo = () => {
+    return {
+      value: state.searchValue,
+      placeholder: state.placeholder,
+    };
   };
 
   return {

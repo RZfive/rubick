@@ -1,14 +1,16 @@
 import {
   AdapterHandlerOptions,
   AdapterInfo,
-} from "@/core/plugin-handler/types";
-import fs from "fs-extra";
-import search, { Result } from "libnpmsearch";
-import path from "path";
-import got from "got";
-import fixPath from "fix-path";
+} from '@/core/plugin-handler/types';
+import fs from 'fs-extra';
+import path from 'path';
+import got from 'got';
+import fixPath from 'fix-path';
 
-import spawn from "cross-spawn";
+import { ipcRenderer } from 'electron';
+import axios from 'axios';
+
+import npm from 'npm';
 
 fixPath();
 
@@ -21,6 +23,8 @@ class AdapterHandler {
   public baseDir: string;
   // 插件源地址
   readonly registry: string;
+
+  pluginCaches = {};
 
   /**
    * Creates an instance of AdapterHandler.
@@ -37,9 +41,44 @@ class AdapterHandler {
       );
     }
     this.baseDir = options.baseDir;
-    this.registry = options.registry || "https://registry.npm.taobao.org";
+
+    let register = options.registry || 'https://registry.npmmirror.com/';
+
+    try {
+      const dbdata = ipcRenderer.sendSync('msg-trigger', {
+        type: 'dbGet',
+        data: { id: 'rubick-localhost-config' },
+      });
+      register = dbdata.data.register;
+    } catch (e) {
+      // ignore
+    }
+    this.registry = register || 'https://registry.npmmirror.com/';
   }
 
+  async upgrade(name: string): Promise<void> {
+    // 创建一个npm-registry-client实例
+    const packageJSON = JSON.parse(
+      fs.readFileSync(`${this.baseDir}/package.json`, 'utf-8')
+    );
+    const registryUrl = `${this.registry}${name}`;
+
+    // 从npm源中获取依赖包的最新版本
+    try {
+      const installedVersion = packageJSON.dependencies[name].replace('^', '');
+      let latestVersion = this.pluginCaches[name];
+      if (!latestVersion) {
+        const { data } = await axios.get(registryUrl, { timeout: 2000 });
+        latestVersion = data['dist-tags'].latest;
+        this.pluginCaches[name] = latestVersion;
+      }
+      if (latestVersion > installedVersion) {
+        await this.install([name], { isDev: false });
+      }
+    } catch (e) {
+      // ...
+    }
+  }
   /**
    * 获取插件信息
    * @param {string} adapter 插件名称
@@ -53,11 +92,11 @@ class AdapterHandler {
     let adapterInfo: AdapterInfo;
     const infoPath =
       adapterPath ||
-      path.resolve(this.baseDir, "node_modules", adapter, "plugin.json");
+      path.resolve(this.baseDir, 'node_modules', adapter, 'plugin.json');
     // 从本地获取
     if (await fs.pathExists(infoPath)) {
       adapterInfo = JSON.parse(
-        fs.readFileSync(infoPath, "utf-8")
+        fs.readFileSync(infoPath, 'utf-8')
       ) as AdapterInfo;
     } else {
       // 本地没有从远程获取
@@ -72,33 +111,9 @@ class AdapterHandler {
 
   // 安装并启动插件
   async install(adapters: Array<string>, options: { isDev: boolean }) {
-    const installCmd = options.isDev ? "link" : "install";
+    const installCmd = options.isDev ? 'link' : 'install';
     // 安装
     await this.execCommand(installCmd, adapters);
-  }
-
-  /**
-   * 从 npm 搜索插件
-   * 传入 streamFunc 可以流式处理
-   * @param {string} adapter 插件名称
-   * @param {(data: Result) => void} [streamFunc] 流式处理钩子
-   * @memberof AdapterHandler
-   */
-  async search(adapter: string, streamFunc?: (data: Result) => void) {
-    return await new Promise<Result[]>((resolve, reject) => {
-      const result: Result[] = [];
-      const stream = search.stream(adapter);
-      stream.on("data", (data: Result) => {
-        result.push(data);
-        if (streamFunc !== undefined) streamFunc(data);
-      });
-      stream.on("end", () => {
-        resolve(result);
-      });
-      stream.on("error", (e: any) => {
-        reject(e);
-      });
-    });
   }
 
   /**
@@ -107,7 +122,7 @@ class AdapterHandler {
    * @memberof AdapterHandler
    */
   async update(...adapters: string[]) {
-    await this.execCommand("update", adapters);
+    await this.execCommand('update', adapters);
   }
 
   /**
@@ -117,7 +132,7 @@ class AdapterHandler {
    * @memberof AdapterHandler
    */
   async uninstall(adapters: string[], options: { isDev: boolean }) {
-    const installCmd = options.isDev ? "unlink" : "uninstall";
+    const installCmd = options.isDev ? 'unlink' : 'uninstall';
     // 卸载插件
     await this.execCommand(installCmd, adapters);
   }
@@ -128,7 +143,7 @@ class AdapterHandler {
    */
   async list() {
     const installInfo = JSON.parse(
-      await fs.readFile(`${this.baseDir}/package.json`, "utf-8")
+      await fs.readFile(`${this.baseDir}/package.json`, 'utf-8')
     );
     const adapters: string[] = [];
     for (const adapter in installInfo.dependencies) {
@@ -143,35 +158,32 @@ class AdapterHandler {
    */
   private async execCommand(cmd: string, modules: string[]): Promise<string> {
     return new Promise((resolve: any, reject: any) => {
-      let args: string[] = [cmd]
-        .concat(modules)
-        .concat("--color=always")
-        .concat("--save");
-      if (cmd !== "uninstall")
-        args = args.concat(`--registry=${this.registry}`);
-      const npm = spawn("npm", args, {
-        cwd: this.baseDir,
-      });
+      const module =
+        cmd !== 'uninstall' && cmd !== 'link'
+          ? modules.map((m) => `${m}@latest`)
+          : modules;
+      const config: any = {
+        prefix: this.baseDir,
+        save: true,
+        cache: path.join(this.baseDir, 'cache'),
+      };
+      if (cmd !== 'link') {
+        config.registry = this.registry;
+      }
+      npm.load(config, function (err) {
+        npm.commands[cmd](module, function (er, data) {
+          if (!err) {
+            console.log(data);
+            resolve({ code: -1, data });
+          } else {
+            reject({ code: -1, data: err });
+          }
+        });
 
-      let output = "";
-      npm.stdout
-        .on("data", (data: string) => {
-          output += data; // 获取输出日志
-        })
-        .pipe(process.stdout);
-
-      npm.stderr
-        .on("data", (data: string) => {
-          output += data; // 获取报错日志
-        })
-        .pipe(process.stderr);
-
-      npm.on("close", (code: number) => {
-        if (!code) {
-          resolve({ code: 0, data: output }); // 如果没有报错就输出正常日志
-        } else {
-          reject({ code: code, data: output }); // 如果报错就输出报错日志
-        }
+        npm.on('log', function (message) {
+          // log installation progress
+          console.log(message);
+        });
       });
     });
   }

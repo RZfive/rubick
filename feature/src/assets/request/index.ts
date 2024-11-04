@@ -1,48 +1,100 @@
-import axios from "axios";
+import axios from 'axios';
+
+let baseURL = 'https://gitee.com/monkeyWang/rubickdatabase/raw/master';
+let access_token = '';
+
+try {
+  const dbdata = window.rubick.db.get('rubick-localhost-config');
+  baseURL = dbdata.data.database;
+  access_token = dbdata.data.access_token;
+} catch (e) {
+  // ignore
+}
+
+const instance = axios.create({
+  timeout: 4000,
+  baseURL:
+    baseURL || 'https://gitee.com/monkeyWang/rubickdatabase/raw/master',
+});
 
 export default {
   async getTotalPlugins() {
-    const res = await axios.get(
-      "https://gitee.com/monkeyWang/rubick-database/raw/master/plugins/total-plugins.json"
-    );
+    let targetPath = 'plugins/total-plugins.json';
+    if (access_token) {
+      targetPath = `${encodeURIComponent(
+        targetPath
+      )}?access_token=${access_token}&ref=master`;
+    }
+    const res = await instance.get(targetPath);
+    console.log('total plugsin', res);
     return res.data;
   },
 
   async getFinderDetail() {
-    const res = await axios.get(
-      "https://gitee.com/monkeyWang/rubick-database/raw/master/plugins/finder.json"
-    );
+    let targetPath = 'plugins/finder.json';
+    if (access_token) {
+      targetPath = `${encodeURIComponent(
+        targetPath
+      )}?access_token=${access_token}&ref=master`;
+    }
+    const res = await instance.get(targetPath);
     return res.data;
   },
 
   async getSystemDetail() {
-    const res = await axios.get(
-      "https://gitee.com/monkeyWang/rubick-database/raw/master/plugins/system.json"
-    );
+    let targetPath = 'plugins/system.json';
+    if (access_token) {
+      targetPath = `${encodeURIComponent(
+        targetPath
+      )}?access_token=${access_token}&ref=master`;
+    }
+    const res = await instance.get(targetPath);
     return res.data;
   },
   async getWorkerDetail() {
-    const res = await axios.get(
-      "https://gitee.com/monkeyWang/rubick-database/raw/master/plugins/worker.json"
-    );
+    let targetPath = 'plugins/worker.json';
+    if (access_token) {
+      targetPath = `${encodeURIComponent(
+        targetPath
+      )}?access_token=${access_token}&ref=master`;
+    }
+    const res = await instance.get(targetPath);
     return res.data;
   },
 
   async getPluginDetail(url: string) {
-    const res = await axios.get(url);
+    const res = await instance.get(url);
     return res.data;
   },
 
-  async getSearchDetail(url: string) {
-    const res = await axios.get(
-      "https://gitee.com/monkeyWang/rubick-database/raw/master/plugins/search.json"
-    );
+  async getSearchDetail() {
+    let targetPath = 'plugins/search.json';
+    if (access_token) {
+      targetPath = `${encodeURIComponent(
+        targetPath
+      )}?access_token=${access_token}&ref=master`;
+    }
+    const res = await instance.get(targetPath);
     return res.data;
   },
-  async getDevDetail(url: string) {
-    const res = await axios.get(
-      "https://gitee.com/monkeyWang/rubick-database/raw/master/plugins/dev.json"
-    );
+  async getDevDetail() {
+    let targetPath = 'plugins/dev.json';
+    if (access_token) {
+      targetPath = `${encodeURIComponent(
+        targetPath
+      )}?access_token=${access_token}&ref=master`;
+    }
+    const res = await instance.get(targetPath);
+    return res.data;
+  },
+  async getImageDetail() {
+    let targetPath = 'plugins/image.json';
+    if (access_token) {
+      targetPath = `${encodeURIComponent(
+        targetPath
+      )}?access_token=${access_token}&ref=master`;
+    }
+    const res = await instance.get(targetPath);
     return res.data;
   },
 };

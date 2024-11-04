@@ -1,9 +1,5 @@
-import appSearch from "@/core/app-search";
-import PluginHandler from "@/core/plugin-handler";
-import LocalDb from "@/core/db";
+import PluginHandler from '@/core/plugin-handler';
+import LocalDb from '@/core/db';
+import screenCapture from '@/core/screen-capture';
 
-export {
-  appSearch,
-  PluginHandler,
-  LocalDb,
-};
+export { PluginHandler, LocalDb, screenCapture };

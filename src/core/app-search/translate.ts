@@ -1,27 +1,30 @@
-function translate(sourceStr: string): string {
+function translate(sourceStr: string): Array<any> {
   // 目标数据
-  let targetStr = ''
+  let targetStr = '';
   // 匹配中文
-  const cnReg = /[\u4e00-\u9fa5]/
+  const cnReg = /[\u4e00-\u9fa5]/;
   // 匹配数字和英文
-  const enReg = /[a-zA-Z0-9]/
+  const enReg = /[a-zA-Z0-9]/;
   // 保留英文和数字
-  const keep = true
+  const keep = true;
+  const pinyinArr: Array<string> = [];
 
   // 遍历源数据
   for (let i = 0, len = sourceStr.length; i < len; i++) {
-    const str = sourceStr.substr(i, 1)
+    const str = sourceStr.substr(i, 1);
     if (keep && enReg.test(str)) {
-      targetStr += str
+      targetStr += str;
     } else if (cnReg.test(str)) {
-      const searchResult = searchPinYin(str, PinYin)
+      const searchResult = searchPinYin(str, PinYin);
       if (searchResult) {
         // targetStr += searchResult
-        targetStr += firstCapital(searchResult) // 首字母大写
+        const py = firstCapital(searchResult);
+        targetStr += py; // 首字母大写
+        pinyinArr.push(py);
       }
     }
   }
-  return targetStr
+  return [targetStr, pinyinArr];
 }
 
 /**
@@ -36,10 +39,10 @@ function searchPinYin(str: string, data: any): string {
       Object.prototype.hasOwnProperty.call(data, key) &&
       data[key].indexOf(str) !== -1
     ) {
-      return key
+      return key;
     }
   }
-  return ''
+  return '';
 }
 
 /**
@@ -49,11 +52,11 @@ function searchPinYin(str: string, data: any): string {
  */
 function firstCapital(str: string): string {
   if (str) {
-    const [first] = str
-    const other = str.replace(/^\S/, '')
-    return `${first.toUpperCase()}${other}`
+    const [first] = str;
+    const other = str.replace(/^\S/, '');
+    return `${first.toUpperCase()}${other}`;
   }
-  return str
+  return str;
 }
 
 /**
@@ -481,6 +484,6 @@ const PinYin = {
   diu: '\u94e5',
   nou: '\u8028',
   fou: '\u7f36',
-  bia: '\u9adf'
-}
-export default translate
+  bia: '\u9adf',
+};
+export default translate;
